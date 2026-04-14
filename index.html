@@ -6,6 +6,7 @@
 <title>Briefing Inicial – Projeto de Arquitetura</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
   :root {
     --bg: #0a0a0a;
@@ -67,6 +68,12 @@
   .pdf-wrap { display: flex; justify-content: center; padding: 16px 0 8px; }
   .pdf-btn { padding: 14px 44px; border-radius: 2px; border: 1px solid #fff; background: #fff; color: #000; font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 600; cursor: pointer; letter-spacing: 0.1em; transition: all 0.18s; }
   .pdf-btn:hover { background: #000; color: #fff; }
+  .pdf-btn:disabled { background: #333; border-color: #333; color: #666; cursor: default; }
+  .action-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px 0 8px; }
+  .wpp-btn { padding: 11px 28px; border-radius: 2px; border: 1px solid #25d366; background: transparent; color: #25d366; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; letter-spacing: .06em; transition: all .18s; text-decoration: none; display: inline-block; text-align: center; }
+  .wpp-btn:hover { background: #25d366; color: #000; }
+  .status-msg { font-size: 12px; color: var(--muted); letter-spacing: .04em; text-align: center; }
+  .status-msg.ok { color: #4caf50; } .status-msg.err { color: #e55; }
 
   .typing .bubble { display: flex; gap: 6px; align-items: center; padding: 14px 18px; }
   .dot { width: 6px; height: 6px; border-radius: 50%; background: #333; animation: bounce 1.2s infinite ease; }
@@ -245,14 +252,28 @@ function finish(){
   const tp=addTyping();
   setTimeout(()=>{
     tp.remove();
-    addBotMsg('Briefing concluído com sucesso.\n\nTodas as informações foram registradas. Clique abaixo para gerar o *PDF de controle interno*.');
-    const w=document.createElement('div');w.className='pdf-wrap';
-    const b=document.createElement('button');b.className='pdf-btn';b.textContent='Gerar PDF';b.onclick=generatePDF;
-    w.appendChild(b);chat.appendChild(w);scrollBot();
+    addBotMsg('Briefing concluído com sucesso.\n\nClique em *Gerar e Enviar PDF* — o arquivo será gerado, enviado por e-mail e você receberá uma notificação no WhatsApp.');
+    const w=document.createElement('div');w.className='action-wrap';
+
+    const pdfBtn=document.createElement('button');
+    pdfBtn.className='pdf-btn';pdfBtn.id='pdf-btn';pdfBtn.textContent='Gerar e Enviar PDF';
+    pdfBtn.onclick=()=>generateAndSend(pdfBtn,statusMsg);
+
+    const statusMsg=document.createElement('p');
+    statusMsg.className='status-msg';statusMsg.id='status-msg';statusMsg.textContent='';
+
+    w.appendChild(pdfBtn);w.appendChild(statusMsg);
+    chat.appendChild(w);scrollBot();
   },800);
 }
 
-function generatePDF(){
+async function generateAndSend(btn, statusEl) {
+  btn.disabled=true;
+  btn.textContent='Gerando PDF...';
+  statusEl.className='status-msg';
+  statusEl.textContent='Aguarde, processando...';
+
+  // ── GERAR PDF ──
   const doc=new jsPDF({unit:'mm',format:'a4'});
   const W=210,M=18,cW=W-M*2;
   let y=0;
@@ -266,7 +287,6 @@ function generatePDF(){
     doc.text(`Pág. ${pg}`,W-M,290,{align:'right'});
   }
 
-  // HEADER
   doc.setFillColor(0,0,0);doc.rect(0,0,W,48,'F');
   try{doc.addImage(LOGO,'PNG',M,10,55,24,'','FAST');}catch(e){}
   doc.setDrawColor(255,255,255);doc.setLineWidth(0.3);doc.line(M+62,12,M+62,38);
@@ -303,8 +323,7 @@ function generatePDF(){
     chk(14);
     doc.setFillColor(0,0,0);doc.rect(M,y,cW,7,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(255,255,255);
-    doc.text(sec.title,M+3,y+5);
-    y+=10;
+    doc.text(sec.title,M+3,y+5);y+=10;
     sec.keys.forEach(([label,key],i)=>{
       const raw=answers[key]||'—';
       const lines=doc.splitTextToSize(raw,cW-50);
@@ -320,14 +339,78 @@ function generatePDF(){
     });
     y+=5;
   });
-
   drawFtr(doc.internal.getNumberOfPages());
-  const nome=(answers['nome_clientes']||'cliente').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g,'');
-  const data=(answers['data']||'').replace(/\//g,'-');
-  doc.save(`briefing_${nome}_${data}.pdf`);
+
+  // PDF como base64 (sem prefixo data:)
+  const pdfBase64 = doc.output('datauristring').split(',')[1];
+  const nome = answers['nome_clientes']||'Cliente';
+  const data = answers['data']||new Date().toLocaleDateString('pt-BR');
+  const fileName = `briefing_${nome.replace(/\s+/g,'_')}_${data.replace(/\//g,'-')}.pdf`;
+
+  // ── BAIXAR PDF localmente ──
+  doc.save(fileName);
+
+  // ── ENVIAR POR E-MAIL via EmailJS ──
+  btn.textContent='Enviando e-mail...';
+  try {
+    emailjs.init('JmOy-E_prRqiNaHW4');
+
+    // Resumo em texto das respostas para o corpo do e-mail
+    const resumo = Object.entries(answers)
+      .map(([k,v])=>`${k}: ${v}`)
+      .join('\n');
+
+    await emailjs.send('service_9jmmcyy','template_a3ph1h4',{
+      to_email: 'contato@cantagaloarquitetos.com',
+      cliente_nome: nome,
+      data_preenchimento: data,
+      resumo_respostas: resumo,
+      pdf_base64: pdfBase64,
+      pdf_nome: fileName,
+    });
+
+    statusEl.className='status-msg ok';
+    statusEl.textContent='✓ E-mail enviado com sucesso para contato@cantagaloarquitetos.com';
+    btn.textContent='Enviado ✓';
+  } catch(err) {
+    console.error(err);
+    statusEl.className='status-msg err';
+    statusEl.textContent='⚠ Erro ao enviar e-mail. O PDF foi salvo localmente.';
+    btn.textContent='Gerar e Enviar PDF';
+    btn.disabled=false;
+  }
+
+  // ── NOTIFICAÇÃO WHATSAPP ──
+  setTimeout(()=>{
+    const msg = encodeURIComponent(
+      `📋 *Novo Briefing Recebido*\n\n` +
+      `*Cliente:* ${nome}\n` +
+      `*Data:* ${data}\n` +
+      `*Imóvel:* ${answers['endereco_imovel']||'—'}\n` +
+      `*Tipo:* ${answers['tipo_imovel']||'—'}\n\n` +
+      `O PDF completo foi enviado para contato@cantagaloarquitetos.com`
+    );
+    // Abre WhatsApp para os dois números
+    const w1=document.createElement('div');w1.className='action-wrap';
+    const wBtn1=document.createElement('a');
+    wBtn1.className='wpp-btn';
+    wBtn1.href=`https://wa.me/5521996322199?text=${msg}`;
+    wBtn1.target='_blank';
+    wBtn1.textContent='📱 Notificar WhatsApp 1';
+    const wBtn2=document.createElement('a');
+    wBtn2.className='wpp-btn';
+    wBtn2.href=`https://wa.me/5521998565060?text=${msg}`;
+    wBtn2.target='_blank';
+    wBtn2.textContent='📱 Notificar WhatsApp 2';
+    w1.appendChild(wBtn1);w1.appendChild(wBtn2);
+    chat.appendChild(w1);scrollBot();
+  },1500);
 }
 
-window.onload=()=>{updateProgress();setTimeout(showQuestion,500);};
+window.onload=()=>{
+  emailjs.init('JmOy-E_prRqiNaHW4');
+  updateProgress();setTimeout(showQuestion,500);
+};
 </script>
 </body>
 </html>
