@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Briefing Inicial – Cantagalo Arquitetos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+:root{--bg:#0a0a0a;--bubble-in:#161616;--text:#f0f0f0;--muted:#555;--radius:4px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+
+.topbar{width:100%;max-width:680px;background:#111;border-bottom:1px solid #1e1e1e;padding:12px 20px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;}
+.logo-wrap{height:38px;display:flex;align-items:center;}
+.logo-wrap img{height:100%;width:auto;object-fit:contain;filter:brightness(0) invert(1);}
+.topbar-div{width:1px;height:26px;background:#2a2a2a;flex-shrink:0;}
+.topbar-info h2{font-family:Helvetica,Arial,sans-serif;font-size:13px;font-weight:400;letter-spacing:.12em;color:#bbb;text-transform:uppercase;}
+.topbar-info p{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:3px;}
+
+.prog-wrap{width:100%;max-width:680px;background:#0d0d0d;padding:9px 20px;border-bottom:1px solid #1a1a1a;position:sticky;top:63px;z-index:99;}
+.prog-label{font-size:9px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:5px;letter-spacing:.08em;text-transform:uppercase;}
+.prog-track{height:1px;background:#222;}
+.prog-fill{height:100%;background:#fff;transition:width .4s ease;}
+
+.main{width:100%;max-width:680px;flex:1;padding:28px 16px 100px;display:flex;flex-direction:column;gap:0;}
+
+/* QUESTION CARD */
+.q-card{background:#111;border:1px solid #1e1e1e;border-radius:var(--radius);padding:24px 20px;display:flex;flex-direction:column;gap:16px;animation:fadeUp .3s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.q-section{font-size:9px;letter-spacing:.2em;color:#444;text-transform:uppercase;margin-bottom:2px;}
+.q-text{font-size:16px;color:#ddd;line-height:1.6;font-weight:300;letter-spacing:.01em;}
+.q-text strong{color:#fff;font-weight:600;}
+
+/* OPTIONS */
+.opts{display:flex;flex-wrap:wrap;gap:8px;}
+.opt{padding:10px 18px;border-radius:var(--radius);border:1px solid #2a2a2a;background:transparent;color:#888;font-family:Helvetica,Arial,sans-serif;font-size:13px;cursor:pointer;transition:all .15s;letter-spacing:.02em;text-align:left;}
+.opt:hover{border-color:#888;color:#ddd;}
+.opt.sel{background:#fff;color:#000;border-color:#fff;font-weight:700;}
+.opt.msel{background:#1c1c1c;color:#fff;border-color:#666;}
+.opt.other-btn{border-style:dashed;color:#555;border-color:#333;}
+.opt.other-btn:hover{border-color:#666;color:#999;}
+
+/* TEXT INPUT */
+.q-textarea{background:#0e0e0e;border:1px solid #2a2a2a;border-radius:var(--radius);padding:12px 14px;color:#fff;font-family:Helvetica,Arial,sans-serif;font-size:14px;resize:none;outline:none;width:100%;min-height:48px;max-height:140px;line-height:1.55;transition:border-color .2s;}
+.q-textarea:focus{border-color:#555;}
+.q-textarea::placeholder{color:#333;}
+.q-textarea.hidden{display:none;}
+
+/* NAV */
+.nav-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px;}
+.nav-btn{padding:10px 24px;border-radius:var(--radius);border:1px solid #2a2a2a;background:transparent;color:#666;font-family:Helvetica,Arial,sans-serif;font-size:13px;cursor:pointer;transition:all .15s;letter-spacing:.06em;}
+.nav-btn:hover:not(:disabled){border-color:#888;color:#ddd;}
+.nav-btn.next{border-color:#fff;background:#fff;color:#000;font-weight:700;}
+.nav-btn.next:hover{background:#ddd;}
+.nav-btn:disabled{opacity:.25;cursor:default;}
+.nav-step{font-size:10px;color:#333;letter-spacing:.06em;}
+
+/* ACTIONS */
+.action-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:28px 0 8px;width:100%;}
+.pdf-btn{padding:15px 48px;border-radius:var(--radius);border:1px solid #fff;background:#fff;color:#000;font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.14em;transition:all .18s;text-transform:uppercase;}
+.pdf-btn:hover{background:#000;color:#fff;}
+.pdf-btn:disabled{background:#2a2a2a;border-color:#2a2a2a;color:#555;cursor:default;}
+.wpp-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.wpp-btn{padding:11px 22px;border-radius:var(--radius);border:1px solid #25d366;background:transparent;color:#25d366;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.06em;transition:all .18s;text-decoration:none;display:inline-block;text-align:center;}
+.wpp-btn:hover{background:#25d366;color:#000;}
+.status-msg{font-size:12px;color:var(--muted);letter-spacing:.04em;text-align:center;padding:0 20px;}
+.status-msg.ok{color:#4caf50;}.status-msg.err{color:#e55;}
+.finish-title{font-size:18px;color:#fff;font-weight:300;letter-spacing:.08em;text-align:center;}
+.finish-sub{font-size:12px;color:#444;letter-spacing:.06em;text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-wrap">
+    <img src="data:image/png;base64,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" alt="Logo">
+  </div>
+  <div class="topbar-div"></div>
+  <div class="topbar-info">
+    <h2>Briefing Inicial</h2>
+    <p>Cantagalo Arquitetos</p>
+  </div>
+</div>
+
+<div class="prog-wrap">
+  <div class="prog-label"><span id="prog-label">Início</span><span id="prog-pct">0%</span></div>
+  <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+</div>
+
+<div class="main" id="main"></div>
+
+<script>
+const {jsPDF}=window.jspdf;
+const LOGO='data:image/png;base64,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';
+
+// ── QUESTIONS ─────────────────────────────────────────────────────────────────
+// type: 'text' = só campo livre | 'single' = botões + outra | 'multi' = multi + outra
+const QUESTIONS = [
+  {section:'Informações Gerais', key:'nome_clientes', type:'text', q:'Qual é o <strong>nome completo</strong> dos clientes?'},
+  {key:'telefones', type:'text', q:'<strong>Telefone(s)</strong> de contato:'},
+  {key:'email', type:'text', q:'<strong>E-mail</strong> para contato:'},
+  {key:'data', type:'text', q:'<strong>Data</strong> do briefing (DD/MM/AAAA):'},
+  {key:'endereco_imovel', type:'text', q:'<strong>Endereço completo</strong> do imóvel a ser reformado:'},
+  {key:'tipo_imovel', type:'single', q:'Qual é o <strong>tipo do imóvel</strong>?', opts:['Apartamento','Casa','Comercial']},
+  {key:'imovel_proprio', type:'single', q:'O imóvel é:', opts:['Próprio','Alugado']},
+  {key:'imovel_estado', type:'single', q:'O imóvel está:', opts:['Vazio','Ocupado','Em obra']},
+
+  {section:'Perfil dos Moradores', key:'qtd_pessoas', type:'single', q:'Quantas <strong>pessoas</strong> utilizarão o espaço?', opts:['1','2','3','4','5 ou mais']},
+  {key:'criancas', type:'single', q:'Existem <strong>crianças</strong> no imóvel?', opts:['Sim','Não']},
+  {key:'idosos', type:'single', q:'Existem <strong>idosos</strong> no imóvel?', opts:['Sim','Não']},
+  {key:'pets', type:'single', q:'Existem <strong>pets</strong>?', opts:['Não','Cachorro','Gato','Cachorro e Gato']},
+  {key:'home_office', type:'single', q:'Alguém <strong>trabalha ou estuda em casa</strong>?', opts:['Sim','Não']},
+  {key:'necessidade_especial', type:'single', q:'Existe alguma <strong>necessidade especial</strong>? (cadeirante, locomoção)', opts:['Não','Sim — cadeirante','Sim — dificuldade de locomoção']},
+
+  {section:'Objetivos do Projeto', key:'objetivo_principal', type:'multi', q:'<strong>Principal objetivo</strong> desta reforma:', opts:['Melhorar funcionalidade','Atualizar estética','Valorizar o imóvel','Resolver problemas existentes']},
+  {key:'incômodo', type:'text', q:'O que mais te <strong>incomoda hoje</strong> no imóvel?'},
+  {key:'nao_pode_faltar', type:'text', q:'O que <strong>não pode faltar</strong> no projeto?'},
+  {key:'nao_quer', type:'text', q:'Algo que você <strong>não quer de jeito nenhum</strong>?'},
+
+  {section:'Estilo e Referências', key:'estilo', type:'single', q:'Como você descreveria seu <strong>estilo</strong>?', opts:['Moderno','Contemporâneo','Clássico','Industrial','Minimalista','Não sei']},
+  {key:'amb_tom', type:'single', q:'Prefere ambientes:', opts:['Claros','Neutros','Escuros']},
+  {key:'cores', type:'single', q:'Tem preferência por <strong>cores</strong>?', opts:['Não tenho preferência','Prefiro tons neutros','Gosto de cores vibrantes','Só tons escuros']},
+  {key:'materiais', type:'text', q:'<strong>Materiais</strong> que gosta ou não gosta (madeira, concreto, mármore…):'},
+  {key:'referencias', type:'text', q:'<strong>Referências</strong> de projetos (links, Pinterest, Instagram) — ou "Não tenho":'},
+
+  {section:'Programa de Necessidades', key:'itens_incorporar', type:'single', q:'Existem <strong>móveis ou itens</strong> a incorporar ao projeto?', opts:['Não','Sim — poucos itens','Sim — vários itens']},
+
+  {section:'Cozinha', key:'coz_tipo', type:'single', q:'Tipo de <strong>cozinha</strong> desejada:', opts:['Integrada','Semi-integrada','Fechada']},
+  {key:'coz_frequencia', type:'single', q:'Costuma <strong>cozinhar</strong> com frequência?', opts:['Sim, diariamente','Às vezes','Raramente']},
+  {key:'coz_extra', type:'multi', q:'<strong>Itens desejados</strong> na cozinha:', opts:['Despensa','Lava-louças','Filtro de água','Triturador','Calha úmida','Som ambiente','TV','Climatização']},
+  {key:'coz_cuba', type:'single', q:'Cuba:', opts:['Única','Dupla']},
+  {key:'coz_agua', type:'single', q:'Água quente na cozinha?', opts:['Sim (misturador)','Só água fria']},
+  {key:'coz_cooktop', type:'single', q:'Preferência de <strong>fogão/cooktop</strong>:', opts:['Cooktop + forno separado','Fogão convencional','Fogão embutido','Indiferente']},
+  {key:'coz_gas', type:'single', q:'A gás ou elétrico?', opts:['Gás','Elétrico','Indiferente']},
+  {key:'coz_coifa', type:'single', q:'Coifa ou depurador?', opts:['Coifa embutida','Coifa de parede','Coifa de ilha','Depurador','Indiferente']},
+
+  {section:'Área de Serviço', key:'serv_maq_tipo', type:'single', q:'Máquina de lavar — tipo de abertura:', opts:['Frontal','Superior','Não definido']},
+  {key:'serv_tanque', type:'single', q:'Tanque:', opts:['Embutido','Coluna','Não precisa']},
+  {key:'serv_varais', type:'single', q:'Quantidade de varais:', opts:['1','2','3 ou mais','Não precisa']},
+
+  {section:'Banheiros', key:'banho_qtd', type:'single', q:'Quantos <strong>banheiros</strong> serão reformados?', opts:['1','2','3','4 ou mais']},
+  {key:'banho_itens', type:'multi', q:'<strong>Preferências</strong> para os banheiros:', opts:['Box','Banheira embutida','Banheira de imersão','Chuveiro de teto','Bidê','Ducha higiênica','Tomadas 220V','Toalheiro elétrico']},
+  {key:'banho_agua', type:'single', q:'Água quente nos banheiros?', opts:['Sim (misturador)','Só água fria']},
+
+  {section:'Sala', key:'sala_extras', type:'multi', q:'O que deseja na <strong>sala</strong>?', opts:['Ventilador de teto','Tapete','Home theater','Lareira','Nenhum item especial']},
+  {key:'sala_desejo', type:'text', q:'Desejo específico ou observação sobre a <strong>sala</strong>:'},
+
+  {section:'Quarto Principal', key:'qp_cama', type:'single', q:'Tamanho da <strong>cama</strong>:', opts:['Casal','Queen','King']},
+  {key:'qp_guarda', type:'single', q:'Guarda-roupa — número de portas:', opts:['2','3','4','6','Sob medida (definir depois)']},
+  {key:'qp_extras', type:'multi', q:'Deseja no <strong>quarto principal</strong>:', opts:['Ventilador de teto','Home office integrado','Closet separado','Nenhum item especial']},
+  {key:'qp_desejo', type:'text', q:'Observação sobre o <strong>quarto principal</strong>:'},
+
+  {section:'Quarto Adicional', key:'q2_nome', type:'single', q:'Há um <strong>quarto adicional</strong> a reformar?', opts:['Não','Sim — quarto de hóspedes','Sim — quarto de criança','Sim — quarto de adolescente']},
+  {key:'q2_cama', type:'single', q:'Tipo de <strong>cama</strong> nesse quarto:', opts:['Solteiro','Bi-cama','Beliche','Queen','Não se aplica']},
+
+  {section:'Escritório / Home Office', key:'esc_tem', type:'single', q:'Será reformado um <strong>escritório ou home office</strong>?', opts:['Não','Sim — uso individual','Sim — dois usuários']},
+  {key:'esc_itens', type:'multi', q:'Deseja no <strong>escritório</strong>:', opts:['Sofá-cama','Poltrona','Estante','TV','Ventilador de teto','Nenhum item especial']},
+
+  {section:'Orçamentos e Prazos', key:'orcamento', type:'single', q:'Existe <strong>orçamento estimado</strong> para a obra?', opts:['Até R$ 50.000','R$ 50.000 – R$ 100.000','R$ 100.000 – R$ 200.000','Acima de R$ 200.000','Não definido']},
+  {key:'prazo', type:'single', q:'<strong>Prazo ideal</strong> para finalização da obra:', opts:['Até 3 meses','3 a 6 meses','6 a 12 meses','Mais de 12 meses','Sem prazo definido']},
+  {key:'data_importante', type:'text', q:'Há alguma <strong>data importante</strong> a considerar? (mudança, evento, férias) — ou "Não":'},
+
+  {section:'Operacional', key:'acompanhamento', type:'single', q:'<strong>Intensidade de acompanhamento</strong> desejada:', opts:['Desejo acompanhar tudo','Prefiro updates regulares','Controle total da equipe de arquitetura']},
+  {key:'tolerancia', type:'single', q:'<strong>Tolerância à reforma</strong>:', opts:['Mínima — prefiro o mínimo de impacto','Moderada','Total — sem restrições']},
+  {key:'autonomia', type:'single', q:'Na tomada de decisões, prefere:', opts:['Participar de todas as decisões','Dar mais autonomia aos arquitetos']},
+
+  {section:'Expectativas', key:'expectativas', type:'text', q:'O que vocês <strong>esperam do nosso trabalho</strong>?'},
+  {key:'exp_anterior', type:'single', q:'Já tiveram <strong>experiência anterior</strong> com arquiteto?', opts:['Não, é a primeira vez','Sim, foi positiva','Sim, foi negativa']},
+  {key:'receios', type:'text', q:'Existe algum <strong>receio ou preocupação</strong> com o processo? — ou "Não":'},
+
+  {section:'Informações Finais', key:'restricao_cond', type:'single', q:'Existe <strong>restrição do condomínio</strong>?', opts:['Não sei','Não há restrições','Sim, há restrições']},
+  {key:'outros', type:'text', q:'Algum <strong>item importante</strong> não mencionado que gostariam de incluir? — ou "Não":'},
+];
+
+const TOTAL = QUESTIONS.length;
+let step = 0;
+let answers = {};
+let multiTemp = {};
+
+function fmtLabel(t){ return t; }
+function updateProgress(){
+  const pct = Math.round((step/TOTAL)*100);
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-pct').textContent = pct+'%';
+  document.getElementById('prog-label').textContent = QUESTIONS[Math.min(step,TOTAL-1)]?.section || 'Concluído';
+}
+
+function renderStep(){
+  if(step >= TOTAL){ renderFinish(); return; }
+  const q = QUESTIONS[step];
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  updateProgress();
+
+  const card = document.createElement('div');
+  card.className = 'q-card';
+
+  // Section label
+  if(q.section){
+    const sec = document.createElement('div');
+    sec.className = 'q-section';
+    sec.textContent = q.section;
+    card.appendChild(sec);
+  }
+
+  // Question text
+  const qt = document.createElement('div');
+  qt.className = 'q-text';
+  qt.innerHTML = q.q;
+  card.appendChild(qt);
+
+  // Answer area
+  if(q.type === 'text'){
+    const ta = document.createElement('textarea');
+    ta.className = 'q-textarea';
+    ta.placeholder = 'Digite aqui...';
+    ta.rows = 2;
+    ta.value = answers[q.key] || '';
+    ta.addEventListener('input', ()=>{ ta.style.height=''; ta.style.height=Math.min(ta.scrollHeight,140)+'px'; });
+    card.appendChild(ta);
+
+    const nav = makeNav(
+      ()=> { answers[q.key] = ta.value.trim(); },
+      ()=> ta.value.trim().length > 0,
+      q.key, ta
+    );
+    card.appendChild(nav);
+
+  } else if(q.type === 'single'){
+    const saved = answers[q.key];
+    const optsDiv = document.createElement('div');
+    optsDiv.className = 'opts';
+
+    let selectedOpt = null;
+    let otherActive = false;
+
+    const ta = document.createElement('textarea');
+    ta.className = 'q-textarea hidden';
+    ta.placeholder = 'Digite sua resposta...';
+    ta.rows = 2;
+    ta.addEventListener('input', ()=>{ ta.style.height=''; ta.style.height=Math.min(ta.scrollHeight,140)+'px'; });
+
+    const makeOptBtn = (label) => {
+      const b = document.createElement('button');
+      b.className = 'opt';
+      b.textContent = label;
+      if(saved === label){ b.classList.add('sel'); selectedOpt = b; }
+      b.onclick = ()=>{
+        if(selectedOpt) selectedOpt.classList.remove('sel');
+        if(otherBtn) otherBtn.classList.remove('sel');
+        b.classList.add('sel');
+        selectedOpt = b;
+        otherActive = false;
+        ta.classList.add('hidden');
+      };
+      return b;
+    };
+
+    q.opts.forEach(o => optsDiv.appendChild(makeOptBtn(o)));
+
+    // "Outra resposta" button
+    const otherBtn = document.createElement('button');
+    otherBtn.className = 'opt other-btn';
+    otherBtn.textContent = '+ Outra resposta';
+    // if saved value is not in opts list, it was a custom answer
+    const isCustom = saved && !q.opts.includes(saved);
+    if(isCustom){ otherBtn.classList.add('sel'); ta.classList.remove('hidden'); ta.value = saved; otherActive = true; }
+    otherBtn.onclick = ()=>{
+      if(selectedOpt){ selectedOpt.classList.remove('sel'); selectedOpt = null; }
+      otherBtn.classList.add('sel');
+      otherActive = true;
+      ta.classList.remove('hidden');
+      ta.focus();
+    };
+    optsDiv.appendChild(otherBtn);
+    card.appendChild(optsDiv);
+    card.appendChild(ta);
+
+    const getVal = ()=> otherActive ? ta.value.trim() : (selectedOpt ? selectedOpt.textContent : '');
+    const isValid = ()=> otherActive ? ta.value.trim().length > 0 : selectedOpt !== null;
+
+    const nav = makeNav(()=>{ answers[q.key] = getVal(); }, isValid, q.key);
+    card.appendChild(nav);
+
+  } else if(q.type === 'multi'){
+    if(!multiTemp[q.key]) multiTemp[q.key] = answers[q.key] ? answers[q.key].split(', ') : [];
+    const saved = multiTemp[q.key];
+
+    const optsDiv = document.createElement('div');
+    optsDiv.className = 'opts';
+
+    const ta = document.createElement('textarea');
+    ta.className = 'q-textarea hidden';
+    ta.placeholder = 'Digite itens adicionais...';
+    ta.rows = 2;
+    ta.addEventListener('input',()=>{ ta.style.height=''; ta.style.height=Math.min(ta.scrollHeight,140)+'px'; });
+
+    let otherActive = false;
+    let otherBtn;
+
+    q.opts.forEach(o=>{
+      const b = document.createElement('button');
+      b.className = 'opt msel-target';
+      b.textContent = o;
+      if(saved.includes(o)) b.classList.add('msel');
+      b.onclick = ()=>{
+        b.classList.toggle('msel');
+        if(b.classList.contains('msel')){ if(!multiTemp[q.key].includes(o)) multiTemp[q.key].push(o); }
+        else { multiTemp[q.key] = multiTemp[q.key].filter(x=>x!==o); }
+      };
+      optsDiv.appendChild(b);
+    });
+
+    otherBtn = document.createElement('button');
+    otherBtn.className = 'opt other-btn';
+    otherBtn.textContent = '+ Outra opção';
+    const customVal = saved.find(s=>!q.opts.includes(s));
+    if(customVal){ otherBtn.classList.add('msel'); ta.classList.remove('hidden'); ta.value = customVal; otherActive = true; }
+    otherBtn.onclick = ()=>{
+      otherActive = !otherActive;
+      otherBtn.classList.toggle('msel', otherActive);
+      ta.classList.toggle('hidden', !otherActive);
+      if(otherActive) ta.focus();
+    };
+    optsDiv.appendChild(otherBtn);
+    card.appendChild(optsDiv);
+    card.appendChild(ta);
+
+    const getVal = ()=>{
+      const base = [...multiTemp[q.key]];
+      if(otherActive && ta.value.trim()) base.push(ta.value.trim());
+      return base.length ? base.join(', ') : 'Nenhum';
+    };
+
+    const nav = makeNav(()=>{ answers[q.key] = getVal(); }, ()=>true, q.key);
+    card.appendChild(nav);
+  }
+
+  main.appendChild(card);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function makeNav(onNext, isValid, key){
+  const row = document.createElement('div');
+  row.className = 'nav-row';
+
+  const back = document.createElement('button');
+  back.className = 'nav-btn';
+  back.textContent = '← Voltar';
+  back.disabled = step === 0;
+  back.onclick = ()=>{ step--; renderStep(); };
+
+  const counter = document.createElement('span');
+  counter.className = 'nav-step';
+  counter.textContent = `${step+1} / ${TOTAL}`;
+
+  const next = document.createElement('button');
+  next.className = 'nav-btn next';
+  next.textContent = step === TOTAL-1 ? 'Concluir ✓' : 'Avançar →';
+  next.onclick = ()=>{
+    if(!isValid()){ next.style.animation='shake .3s'; setTimeout(()=>next.style.animation='',300); return; }
+    onNext();
+    step++;
+    renderStep();
+  };
+
+  row.appendChild(back);
+  row.appendChild(counter);
+  row.appendChild(next);
+  return row;
+}
+
+function renderFinish(){
+  updateProgress();
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'action-wrap';
+
+  const title = document.createElement('div');
+  title.className = 'finish-title';
+  title.textContent = 'Briefing concluído';
+
+  const sub = document.createElement('div');
+  sub.className = 'finish-sub';
+  sub.textContent = 'Clique abaixo para gerar e enviar o PDF';
+
+  const btn = document.createElement('button');
+  btn.className = 'pdf-btn';
+  btn.textContent = 'GERAR E ENVIAR PDF';
+  btn.onclick = ()=> generateAndSend(btn, status);
+
+  const status = document.createElement('p');
+  status.className = 'status-msg';
+
+  wrap.appendChild(title);
+  wrap.appendChild(sub);
+  wrap.appendChild(btn);
+  wrap.appendChild(status);
+  main.appendChild(wrap);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function generateAndSend(btn, statusEl){
+  btn.disabled = true;
+  btn.textContent = 'GERANDO PDF...';
+  statusEl.textContent = 'Aguarde...';
+
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const W=210, M=18, cW=W-M*2;
+  let y=0;
+
+  // Calcula proporção real da logo para não distorcer
+  const logoImg = new Image();
+  logoImg.src = LOGO;
+  await new Promise(r=>{ logoImg.onload=r; logoImg.onerror=r; });
+  const logoNatW = logoImg.naturalWidth||303;
+  const logoNatH = logoImg.naturalHeight||64;
+  const logoH = 14; // altura fixa no header
+  const logoW = (logoNatW/logoNatH)*logoH; // largura proporcional
+
+  function drawFtr(pg){
+    doc.setFillColor(0,0,0); doc.rect(0,282,W,15,'F');
+    const fLogoH=7, fLogoW=(logoNatW/logoNatH)*fLogoH;
+    try{ doc.addImage(LOGO,'PNG',M,285,fLogoW,fLogoH,'','FAST'); }catch(e){}
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(100,100,100);
+    doc.text(`Briefing Inicial — Uso Interno | ${new Date().toLocaleDateString('pt-BR')}`, M+fLogoW+4, 290);
+    doc.text(`Pág. ${pg}`, W-M, 290, {align:'right'});
+  }
+  function chk(h=16){ if(y+h>272){ drawFtr(doc.internal.getNumberOfPages()); doc.addPage(); y=20; } }
+
+  // HEADER
+  doc.setFillColor(0,0,0); doc.rect(0,0,W,48,'F');
+  try{ doc.addImage(LOGO,'PNG',M,17,logoW,logoH,'','FAST'); }catch(e){}
+  const lx = M+logoW+10;
+  doc.setDrawColor(255,255,255); doc.setLineWidth(0.3); doc.line(lx,12,lx,36);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(150,150,150);
+  doc.text('BRIEFING INICIAL', lx+6, 21);
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(255,255,255);
+  doc.text('PROJETO DE ARQUITETURA', lx+6, 29);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(110,110,110);
+  doc.text(`${answers['nome_clientes']||'—'}   ·   ${answers['data']||'—'}`, lx+6, 37);
+  doc.setFillColor(255,255,255); doc.rect(0,48,W,0.4,'F');
+  y=60;
+
+  // Group questions by section
+  const sections=[];
+  let cur=null;
+  QUESTIONS.forEach(q=>{
+    if(q.section){ cur={title:q.section,keys:[]}; sections.push(cur); }
+    if(cur) cur.keys.push(q);
+  });
+
+  sections.forEach((sec,si)=>{
+    chk(14);
+    doc.setFillColor(0,0,0); doc.rect(M,y,cW,7,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
+    doc.text(`${String(si+1).padStart(2,'0')} — ${sec.title.toUpperCase()}`, M+3, y+5);
+    y+=10;
+
+    sec.keys.forEach(({key,q},i)=>{
+      const raw = answers[key]||'—';
+      // label: strip HTML tags
+      const label = q.replace(/<[^>]+>/g,'').replace(/\?/g,'').trim().substring(0,38);
+      const lines = doc.splitTextToSize(raw, cW-52);
+      const rh = Math.max(7, lines.length*5.5+2);
+      chk(rh+1);
+      if(i%2===0){ doc.setFillColor(246,246,246); doc.rect(M,y-1,cW,rh+1,'F'); }
+      doc.setDrawColor(225,225,225); doc.rect(M,y-1,cW,rh+1,'S');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(130,130,130);
+      doc.text(label, M+2, y+4.5);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(0,0,0);
+      doc.text(lines, M+52, y+4.5);
+      y+=rh+1;
+    });
+    y+=5;
+  });
+
+  drawFtr(doc.internal.getNumberOfPages());
+
+  const nome = (answers['nome_clientes']||'cliente').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_]/g,'');
+  const data = (answers['data']||'').replace(/\//g,'-');
+  const fileName = `briefing_${nome}_${data}.pdf`;
+  doc.save(fileName);
+
+  // EMAIL
+  btn.textContent='ENVIANDO E-MAIL...';
+  const resumo = QUESTIONS.map(q=>{ const l=q.q.replace(/<[^>]+>/g,'').trim(); return `${l}: ${answers[q.key]||'—'}`; }).join('\n');
+  try{
+    await emailjs.send('service_9jmmcyy','template_a3ph1h4',{
+      to_email:'contato@cantagaloarquitetos.com',
+      cliente_nome: answers['nome_clientes']||'—',
+      data_preenchimento: answers['data']||'—',
+      resumo_respostas: resumo,
+      pdf_base64: doc.output('datauristring').split(',')[1],
+      pdf_nome: fileName,
+    });
+    statusEl.className='status-msg ok';
+    statusEl.textContent='✓ E-mail enviado para contato@cantagaloarquitetos.com';
+    btn.textContent='ENVIADO ✓';
+  }catch(err){
+    console.error(err);
+    statusEl.className='status-msg err';
+    statusEl.textContent='⚠ Erro no envio do e-mail. PDF salvo localmente.';
+    btn.textContent='GERAR E ENVIAR PDF';
+    btn.disabled=false;
+  }
+
+  // WHATSAPP BUTTONS
+  setTimeout(()=>{
+    const msg = encodeURIComponent(
+      `📋 *Novo Briefing Recebido*\n\n*Cliente:* ${answers['nome_clientes']||'—'}\n*Data:* ${answers['data']||'—'}\n*Imóvel:* ${answers['endereco_imovel']||'—'}\n\nO PDF foi enviado para contato@cantagaloarquitetos.com`
+    );
+    const wRow = document.createElement('div'); wRow.className='wpp-row';
+    const w1=document.createElement('a'); w1.className='wpp-btn';
+    w1.href=`https://wa.me/5521996322199?text=${msg}`; w1.target='_blank'; w1.textContent='📱 WhatsApp 1';
+    const w2=document.createElement('a'); w2.className='wpp-btn';
+    w2.href=`https://wa.me/5521998565060?text=${msg}`; w2.target='_blank'; w2.textContent='📱 WhatsApp 2';
+    wRow.appendChild(w1); wRow.appendChild(w2);
+    document.getElementById('main').appendChild(wRow);
+  },1200);
+}
+
+window.onload=()=>{
+  emailjs.init('JmOy-E_prRqiNaHW4');
+  renderStep();
+};
+</script>
+</body>
+</html>
